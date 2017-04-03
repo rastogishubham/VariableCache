@@ -13,7 +13,8 @@ logic [WAYS - 1:0] dirty_arr;
 word_t dcachef;
 logic match, dirty;
 logic [MRU - 1:0] match_idx;
-typedef enum logic [2:0] {IDLE, EVAL, LOAD, WB, WRITE_CACHE, HALT}; 
+logic [WORD_COUNT - 1:0] count, next_count, blocknum, next_blocknum;
+typedef enum logic [2:0] {IDLE, EVAL, LOAD, WB, FLUSH, WRITE_CACHE, HALT}; 
 state_type;
 
 state_type state, next_state;
@@ -23,14 +24,19 @@ begin
 	if(~nRST)
 	begin
 		 state <= IDLE;
+		 count <= '0;
 	end 
 	else
 		 state <= next_state;
+		 count <= next_count;
+		 blocknum <= next_blocknum;
 end
 
 always_comb
 begin
 	next_state = state;
+	next_count = count;
+	next_blocknum = blocknum;
 	csif.sramWEN = 0;
 	csif.sramREN = 0;
 	csif.sramaddr = '0;
@@ -47,13 +53,60 @@ begin
 				csif.sramaddr = {'0, dcachef.idx};
 				next_state = IDLE;
 			end
+			else if(dcif.halt)
+			begin
+				next_state = FLUSH;
+			end
 			else
 				next_state = IDLE;
 		end
 
 		EVAL:
 		begin
+			if(match & dmemWEN)
+			begin
+				next_state = WRITE_CACHE;
+			end
+			else if(match & dmemREN)
+			begin
+				next_state = IDLE;
+				dcif.dmemload = csif.cacheline.set[match_idx].data[dcachef.blkoff];
+				dcif.dhit = 1;
+			end
+			else if(!match & dirty)
+			begin
+				next_state = WB;
+			end
+			else
+			begin
+				next_state = LOAD;
+			end
+		end
 
+		LOAD:
+		begin
+			cif.dREN = 1;
+			dcif.dhit = 0;
+			if(count == WORDS)
+				next_state = IDLE;
+			else
+				next_state = LOAD;
+
+			if(~count & ~cif.dwait)
+			begin
+				next_blocknum = blocknum + 1;
+				next_count = count + 1;
+				dcif.dhit = 1;
+			end
+			else if(~count)
+			begin
+				cif.daddr = dcif.dmemaddr;
+				next_blocknum = dcachef.idx;
+			end
+			else
+			begin
+				//cif.daddr = {dcachef.tag, }
+			end
 		end
 	endcase
 end
@@ -68,11 +121,17 @@ begin
 						& csif.cacheline.set[i].v;
 		dirty_arr[i] = csif.cacheline.set[i].dirty;
 		if(match_arr[i])
-			match = 1;
-		else if(dirty_arr[i] & match_arr[i])
 		begin
-			
+			match = 1;
+			match_idx = i;
 		end
+		if(dirty_arr[i] & match_arr[i])
+		begin
+			match = 1;
+			dirty = 1;
+			match_idx = i;
+		end
+
 	end
 end
 

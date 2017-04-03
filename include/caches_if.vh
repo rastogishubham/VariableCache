@@ -2,12 +2,12 @@
 `define CACHES_IF_VH
 
 // ram memory types
-`include "caches_types_package.vh"
+`include "cache_types_package.vh"
 
 interface caches_if;
 
   // import types
-  import caches_types_package::*;
+  import cache_types_package::*;
 
   logic          dwait, dREN, dWEN;
   word_t         dload, dstore;
@@ -29,30 +29,30 @@ interface caches_if;
   logic match;
 
 
-  modport cache_dp {
+  modport cache_dp (
   	input halt, dmemREN, dmemWEN,
-  	 	dmemstore, dmemstore,
-  	output dhit, dmemload, flushed;
-  };
+  	 	dmemstore, dmemaddr,
+  	output dhit, dmemload, flushed
+  );
 
-  modport cache_mem {
+  modport cache_mem (
   	input dwait, dload,
   	output dREN, dWEN, 
   		daddr, dstore
-  };
+  );
 
-  modport cache_sram {
+  modport cache_sram (
   	input sramstate, cacheline,
   	output sramWEN, sramREN,
   		sramaddr, sramstore
-  };
+  );
 
-  modport cache_rep {
+  modport cache_rep (
     input way,
     output rep_cacheline,
       rep_daddr, match_idx,
       match
-  };
+  );
 
 endinterface
 `endif

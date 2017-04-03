@@ -23,6 +23,12 @@ interface caches_if;
   word_t		 dmemstore, dmemaddr,
   				 dmemload;
 
+  logic [MRU - 1:0] way, match_idx;
+  dcache_frame rep_cacheline;
+  word_t rep_daddr;
+  logic match;
+
+
   modport cache_dp {
   	input halt, dmemREN, dmemWEN,
   	 	dmemstore, dmemstore,
@@ -40,3 +46,13 @@ interface caches_if;
   	output sramWEN, sramREN,
   		sramaddr, sramstore
   };
+
+  modport cache_rep {
+    input way,
+    output rep_cacheline,
+      rep_daddr, match_idx,
+      match
+  };
+
+endinterface
+`endif

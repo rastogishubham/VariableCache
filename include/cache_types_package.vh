@@ -1,6 +1,6 @@
 `ifndef CACHE_TYPES_PACKAGE_VH
 `define CACHE_TYPES_PACKAGE_VH
-package cpu_types_package;
+package cache_types_package;
 
 	parameter WAYS = 2;
 	parameter WORDS = 2;
@@ -10,8 +10,8 @@ package cpu_types_package;
 	parameter DBLK_W = 1;
 	parameter DBYT_W = 2;
 	parameter PAD = 32 - DIDX_W;
-	parameter MRU = $clog(WAYS);
-	parameter WORD_COUNT = $clog(WORDS);
+	parameter MRU = log2(WAYS);
+	parameter WORD_COUNT = log2(WORDS);
 
 	typedef logic [WORD_W-1:0] word_t;
 
@@ -40,5 +40,11 @@ package cpu_types_package;
     	logic [DBLK_W - 1:0]  blkoff;
     	logic [DBYT_W - 1:0]  bytoff;
   } dcachef_t;
+
+  function integer log2;
+  	input [31:0] value;
+  	for(log2 = 0; value > 0; log2 = log2 + 1)
+  		value = value >> 1;
+  endfunction
 endpackage
 `endif

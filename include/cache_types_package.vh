@@ -10,6 +10,13 @@ package cpu_types_package;
 
 	typedef logic [WORD_W-1:0] word_t;
 
+  	typedef enum logic [1:0] {
+    	FREE,
+    	BUSY,
+    	ACCESS,
+    	ERROR
+  	} ramstate_t;
+
 	typedef struct packed {
 		logic v;
 		logic dirty;

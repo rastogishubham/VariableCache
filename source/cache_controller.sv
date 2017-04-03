@@ -1,7 +1,7 @@
 `include "cache_types_package.vh"
 `include "caches_if.vh"
 import cache_types_package::*;
-module dcache (
+module cache_controller (
 	input CLK, nRST,
 	caches_if.cache_dp dcif,
 	caches_if.cache_mem cif,
@@ -11,12 +11,12 @@ module dcache (
 
 logic [WAYS - 1:0] match_arr;
 logic [WAYS - 1:0] dirty_arr;
-word_t dcachef;
+dcachef_t dcachef;
 logic match, dirty;
 logic [MRU - 1:0] match_idx;
 logic [WORD_COUNT - 1:0] count, next_count, blocknum, next_blocknum;
 dcache_frame next_sramstore;
-typedef enum logic [2:0] {IDLE, EVAL, LOAD, WB, WRITE_CACHE, HALT}; 
+typedef enum logic [2:0] {IDLE, EVAL, LOAD, WB, WRITE_CACHE, HALT}
 state_type;
 
 state_type state, next_state;
@@ -27,7 +27,9 @@ begin
 	begin
 		 state <= IDLE;
 		 count <= '0;
+		 blocknum <= '0;
 		 csif.sramstore <= '0;
+
 	end 
 	else
 		 state <= next_state;
@@ -61,7 +63,10 @@ begin
 			next_count = 0;
 
 			if((dcif.dmemWEN | dcif.dmemREN) & csif.sramstate == ACCESS)
+			begin
 				next_state = EVAL;
+				next_sramstore = csif.cacheline;
+			end
 			else if(dcif.dmemWEN | dcif.dmemREN)
 			begin
 				csif.sramREN = 1;
@@ -70,7 +75,7 @@ begin
 			end
 			else if(dcif.halt)
 			begin
-				next_state = FLUSH;
+				next_state = HALT;
 			end
 			else
 				next_state = IDLE;
@@ -79,11 +84,12 @@ begin
 		EVAL:
 		begin
 
-			if(match & dmemWEN)
+			if(match & dcif.dmemWEN)
 			begin
 				next_state = WRITE_CACHE;
+				next_sramstore.set[match_idx].data[dcachef.blkoff] = dcif.dmemstore;
 			end
-			else if(match & dmemREN)
+			else if(match & dcif.dmemREN)
 			begin
 				next_state = IDLE;
 				dcif.dmemload = csif.cacheline.set[match_idx].data[dcachef.blkoff];
@@ -102,7 +108,6 @@ begin
 		LOAD:
 		begin
 			cif.dREN = 1;
-			next_sramstore = csif.cacheline;
 			if(count == WORDS)
 				next_state = WRITE_CACHE;
 			else
@@ -135,7 +140,38 @@ begin
 		WB:
 		begin
 			cif.dWEN = 1;
+			if(count == WORDS)
+			begin
+				next_count = 0;
+				next_state = LOAD;
+			end
+			else
+				next_state = WB;
 
+			if(~cif.dwait)
+			begin
+				next_count = count + 1;
+			end
+			else
+			begin
+				cif.daddr = {csif.cacheline.set[crif.way].tag, dcachef.idx, count, dcachef.bytoff};
+				cif.dstore = csif.cacheline.set[crif.way].data[count];
+			end
+		end
+
+		WRITE_CACHE:
+		begin
+			csif.sramWEN = 1;
+			if(crif.sramstate == ACCESS)
+				next_state = IDLE;
+			else
+				next_state = WRITE_CACHE;
+		end
+
+		HALT:
+		begin
+			dcif.flushed = 1;
+			next_state = HALT;
 		end
 	endcase
 end
@@ -169,4 +205,5 @@ assign crif.match_arr = match_arr;
 assign crif.rep_daddr = dcif.dmemaddr;
 assign crif.rep_cacheline = csif.cachelinel;
 assign crif.match_idx = match_idx;
-assign crif.match = (match & (dcif.dmemREN | dcif.dmemWEN));
+assign crif.match = (match & (dcif.dmemREN | dcif.dmemWEN) & state == EVAL);
+endmodule

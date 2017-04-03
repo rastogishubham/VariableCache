@@ -40,3 +40,5 @@ package cpu_types_package;
     	logic [DBLK_W - 1:0]  blkoff;
     	logic [DBYT_W - 1:0]  bytoff;
   } dcachef_t;
+endpackage
+`endif

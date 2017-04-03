@@ -11,6 +11,7 @@ package cpu_types_package;
 	parameter DBYT_W = 2;
 	parameter PAD = 32 - DIDX_W;
 	parameter MRU = $clog(WAYS);
+	parameter WORD_COUNT = $clog(WORDS);
 
 	typedef logic [WORD_W-1:0] word_t;
 

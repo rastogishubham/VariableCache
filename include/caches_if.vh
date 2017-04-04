@@ -19,9 +19,9 @@ interface caches_if;
   dcache_frame	 cacheline, sramstore;
 
   logic 		 halt, dmemREN, dmemWEN,
-  				 flushed, dhit;
+  				   flushed, dhit;
   word_t		 dmemstore, dmemaddr,
-  				 dmemload;
+  				   dmemload;
 
   logic [MRU - 1:0] way, match_idx;
   dcache_frame rep_cacheline;

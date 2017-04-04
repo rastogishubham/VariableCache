@@ -10,8 +10,8 @@ package cache_types_package;
 	parameter DBLK_W = 1;
 	parameter DBYT_W = 2;
 	parameter PAD = 32 - DIDX_W;
-	parameter MRU = log2(WAYS);
-	parameter WORD_COUNT = log2(WORDS);
+	parameter MRU = $clog2(WAYS);
+	parameter WORD_COUNT = $clog2(WORDS);
 
 	typedef logic [WORD_W-1:0] word_t;
 
@@ -41,10 +41,5 @@ package cache_types_package;
     	logic [DBYT_W - 1:0]  bytoff;
   } dcachef_t;
 
-  function integer log2;
-  	input [31:0] value;
-  	for(log2 = 0; value > 0; log2 = log2 + 1)
-  		value = value >> 1;
-  endfunction
 endpackage
 `endif

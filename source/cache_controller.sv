@@ -16,8 +16,7 @@ logic match, dirty;
 logic [MRU - 1:0] match_idx;
 logic [WORD_COUNT - 1:0] count, next_count, blocknum, next_blocknum;
 dcache_frame next_sramstore, curr_cacheline;
-typedef enum logic [2:0] {IDLE, EVAL, LOAD, WB, WRITE_CACHE, HALT}
-state_type;
+typedef enum logic [2:0] {IDLE, EVAL, LOAD, WB, WRITE_CACHE, HALT} state_type;
 
 state_type state, next_state;
 

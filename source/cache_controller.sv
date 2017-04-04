@@ -121,13 +121,19 @@ begin
 				next_blocknum = blocknum + 1;
 				next_count = count + 1;
 				dcif.dhit = 1;
+				next_sramstore.set[crif.way].tag = dcachef.tag;
+				next_sramstore.set[crif.way].v = 1;
 				if(dcif.dmemREN)
 				begin
 					next_sramstore.set[crif.way].data[blocknum] = cif.dload;
+					next_sramstore.set[crif.way].dirty = 0;
 					dcif.dmemload = cif.dmemload;
 				end
 				else
+				begin
 					next_sramstore.set[crif.way].data[blocknum] = dcif.dmemstore;
+					next_sramstore.set[crif.way].dirty = 1;
+				end
 			end
 			else if(~count)
 			begin
@@ -143,14 +149,18 @@ begin
 					next_count = count + 1;
 					next_sramstore.set[crif.way].data[blocknum] = cif.dload;
 				end
-				
+
 				if(dcif.dmemREN & match)
 				begin
 					dcif.dhit = 1;
 					dcif.dmemload = next_sramstore.set[match_idx].data[dcachef.blkoff];
 				end
 				else if(dcif.dmemstore & match)
+				begin
+					dcif.dhit = 1;
 					next_sramstore.set[match_idx].data[dcachef.blkoff] = dcif.dmemstore;
+					next_sramstore.set[match_idx].dirty = 1;
+				end
 				else
 					dcif.dhit = 0;
 			end

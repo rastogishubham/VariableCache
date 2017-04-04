@@ -15,7 +15,7 @@ dcachef_t dcachef;
 logic match, dirty;
 logic [MRU - 1:0] match_idx;
 logic [WORD_COUNT - 1:0] count, next_count, blocknum, next_blocknum;
-dcache_frame next_sramstore;
+dcache_frame next_sramstore, curr_cacheline;
 typedef enum logic [2:0] {IDLE, EVAL, LOAD, WB, WRITE_CACHE, HALT}
 state_type;
 
@@ -29,6 +29,7 @@ begin
 		 count <= '0;
 		 blocknum <= '0;
 		 csif.sramstore <= '0;
+		 curr_cacheline <= '0;
 
 	end 
 	else
@@ -36,6 +37,8 @@ begin
 		 count <= next_count;
 		 blocknum <= next_blocknum;
 		 csif.sramstore <= next_sramstore;
+		 if(csif.sramstate == ACCESS & state == IDLE)
+		 	curr_cacheline <= csif.cacheline;
 end
 
 always_comb
@@ -92,7 +95,7 @@ begin
 			else if(match & dcif.dmemREN)
 			begin
 				next_state = IDLE;
-				dcif.dmemload = csif.cacheline.set[match_idx].data[dcachef.blkoff];
+				dcif.dmemload = curr_cacheline.set[match_idx].data[dcachef.blkoff];
 				dcif.dhit = 1;
 			end
 			else if(!match & dirty)
@@ -118,7 +121,13 @@ begin
 				next_blocknum = blocknum + 1;
 				next_count = count + 1;
 				dcif.dhit = 1;
-				next_sramstore.set[crif.way].data[blocknum] = dcif.dmemload;
+				if(dcif.dmemREN)
+				begin
+					next_sramstore.set[crif.way].data[blocknum] = cif.dload;
+					dcif.dmemload = cif.dmemload;
+				end
+				else
+					next_sramstore.set[crif.way].data[blocknum] = dcif.dmemstore;
 			end
 			else if(~count)
 			begin
@@ -132,8 +141,18 @@ begin
 				begin
 					next_blocknum = blocknum + 1;
 					next_count = count + 1;
-					next_sramstore.set[crif.way].data[blocknum] = dcif.dmemload;
+					next_sramstore.set[crif.way].data[blocknum] = cif.dload;
 				end
+				
+				if(dcif.dmemREN & match)
+				begin
+					dcif.dhit = 1;
+					dcif.dmemload = next_sramstore.set[match_idx].data[dcachef.blkoff];
+				end
+				else if(dcif.dmemstore & match)
+					next_sramstore.set[match_idx].data[dcachef.blkoff] = dcif.dmemstore;
+				else
+					dcif.dhit = 0;
 			end
 		end
 
@@ -154,8 +173,8 @@ begin
 			end
 			else
 			begin
-				cif.daddr = {csif.cacheline.set[crif.way].tag, dcachef.idx, count, dcachef.bytoff};
-				cif.dstore = csif.cacheline.set[crif.way].data[count];
+				cif.daddr = {curr_cacheline.set[crif.way].tag, dcachef.idx, count, dcachef.bytoff};
+				cif.dstore = curr_cacheline.set[crif.way].data[count];
 			end
 		end
 
@@ -182,9 +201,9 @@ begin
 	dirty = 0;
 	for(integer i = 0; i < WAYS; i = i + 1)
 	begin
-		match_arr[i] = (csif.cacheline.set[i].tag == dcachef.tag) 
-						& csif.cacheline.set[i].v;
-		dirty_arr[i] = csif.cacheline.set[i].dirty;
+		match_arr[i] = (curr_cacheline.set[i].tag == dcachef.tag) 
+						& curr_cacheline.set[i].v;
+		dirty_arr[i] = curr_cacheline.set[i].dirty;
 		if(match_arr[i])
 		begin
 			match = 1;
@@ -203,7 +222,7 @@ end
 assign dcachef = dcachef_t'(dcif.dmemaddr);
 assign crif.match_arr = match_arr;
 assign crif.rep_daddr = dcif.dmemaddr;
-assign crif.rep_cacheline = csif.cachelinel;
+assign crif.rep_cacheline = curr_cacheline;
 assign crif.match_idx = match_idx;
 assign crif.match = (match & (dcif.dmemREN | dcif.dmemWEN) & state == EVAL);
 endmodule
